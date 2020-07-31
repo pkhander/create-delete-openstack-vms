@@ -17,3 +17,12 @@ This script has three checks so far
 SHH Connection check needs to be added before teminating the VM. 
 
 Key pair and security groups can be created instead of using pre-exisitng ones 
+
+## Expected output
+
+['Creation success', 'Floating Assigned', 'SSH Success!!', 'Server Deleted']
+
+or
+
+[Errno 110] Connection timed out
+['Creation success', 'Floating Assigned', 'SSH Failed!', 'Server Deleted']

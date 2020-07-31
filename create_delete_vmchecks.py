@@ -12,7 +12,7 @@ from novaclient import client
 conn = openstack.connect(cloud="kaizen_oidc")
 nova_client = client.Client(2, session=conn)
 
-SERVERNAME = "conn.connect.vm"
+SERVERNAME = "test.vm"
 IMAGENAME = "centos7-1907"
 FLAVOR = "m1.small"
 NETWORK = "default_network"
@@ -20,9 +20,13 @@ POOL = "external"
 KEYPAIR_NAME = "pk"
 instance = None
 
+the_check = []
+
 
 def create_instance(conn):
     """Create a vm + assing floating ip + SSH in the VM"""
+
+    global instance
 
     try:
         image = conn.compute.find_image(IMAGENAME)
@@ -40,10 +44,10 @@ def create_instance(conn):
         )
 
         instance = conn.compute.wait_for_server(instance)
-        print("Creation Success!!")
+        the_check.append('Creation success')
 
     except Exception as err:
-        print("Creation Failed!")
+        the_check.append('Creation Failed')
         print(err)
 
     try:
@@ -54,41 +58,48 @@ def create_instance(conn):
             server=instance.id,
             address=ip.floating_ip_address)
 
-        print("Assign Floating Success!!")
+        the_check.append("IP Assigned")
 
     except Exception as err:
-        print("Assign Floating Failed!")
+        the_check.append("IP Failed")
         print(err)
 
     time.sleep(120)
 
-    for i in range(0, 5):
-        while True:
-            try:
-                test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                test_socket.connect((ip.floating_ip_address, 22))
-                print("SSH Success!!")
-                break
-            except Exception as err:
-                print("SSH Failed!")
-                print(err)
-                break
-            else:
-                test_socket.close()
+    while True:
+        try:
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.connect((ip.floating_ip_address, 22))
+            the_check.append("SSH Success!")
+            break
+        except Exception as err:
+            the_check.append("SSH Failed!")
+            print(err)
+            break
+        else:
+            test_socket.close()
 
 
 def delete_instance(conn):
     """Deletes the VM + floating IP sent to the pool"""
 
     try:
-        conn.compute.delete_server(instance, 600)
-        print("Server Deleted")
+        conn.compute.delete_server(instance.id, 600)
+        the_check.append("Server Deleted")
 
     except Exception as err:
-        print("Deletion failed")
+        the_check.append("Deletion failed")
         print(err)
 
 
-create_instance(conn)
+# is_created = create_instance(conn)
+# if is_created:
+#     print(the_check)
 
+# else:
+#     print(the_check)
+#     print(the_error)
+# delete_instance(conn)
+create_instance(conn)
 delete_instance(conn)
+print(the_check)
