@@ -3,30 +3,30 @@
 import os
 import time
 import socket
+import json
 import openstack
 import os.path
 from novaclient.v2.client import Client
 from novaclient import client
 
 
-conn = openstack.connect(cloud="kaizen_oidc")
-nova_client = client.Client(2, session=conn)
-
+CLOUDNAME = "kaizen_oidc"
 SERVERNAME = "test.vm"
 IMAGENAME = "centos7-1907"
 FLAVOR = "m1.small"
 NETWORK = "default_network"
 POOL = "external"
 KEYPAIR_NAME = "pk"
-instance = None
 
 the_check = []
 
 
+conn = openstack.connect(cloud=CLOUDNAME)
+nova_client = client.Client(2, session=conn)
+
+
 def create_instance(conn):
     """Create a vm + assing floating ip + SSH in the VM"""
-
-    global instance
 
     try:
         image = conn.compute.find_image(IMAGENAME)
@@ -44,7 +44,7 @@ def create_instance(conn):
         )
 
         instance = conn.compute.wait_for_server(instance)
-        the_check.append('Creation success')
+        the_check.append("Creation success")
 
     except Exception as err:
         the_check.append('Creation Failed')
@@ -70,7 +70,7 @@ def create_instance(conn):
         try:
             test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_socket.connect((ip.floating_ip_address, 22))
-            the_check.append("SSH Success!")
+            the_check.append("SSH Success")
             break
         except Exception as err:
             the_check.append("SSH Failed!")
@@ -78,9 +78,10 @@ def create_instance(conn):
             break
         else:
             test_socket.close()
+    return instance
 
 
-def delete_instance(conn):
+def delete_instance(conn, instance):
     """Deletes the VM + floating IP sent to the pool"""
 
     try:
@@ -91,15 +92,9 @@ def delete_instance(conn):
         the_check.append("Deletion failed")
         print(err)
 
+    return True
 
-# is_created = create_instance(conn)
-# if is_created:
-#     print(the_check)
 
-# else:
-#     print(the_check)
-#     print(the_error)
-# delete_instance(conn)
-create_instance(conn)
-delete_instance(conn)
+instance = create_instance(conn)
+delete_instance(conn, instance)
 print(the_check)
