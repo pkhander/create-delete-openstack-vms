@@ -12,6 +12,12 @@ import os.path
 from novaclient.v2.client import Client
 from novaclient import client
 
+FileName = "./vm_test_error"
+# FileName += time.strftime("%d-%b-%Y")
+FileName += ".log"
+
+with open(FileName, "a+") as f:
+    pass
 
 CLOUDNAME = "kaizen_oidc"
 SERVERNAME = "test.vm"
@@ -26,6 +32,13 @@ the_check = []
 
 conn = openstack.connect(cloud=CLOUDNAME)
 nova_client = client.Client(2, session=conn)
+
+""" error.log config"""
+logging.basicConfig(
+    filename=FileName,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s "
+)
 
 
 def create_instance(conn):
@@ -51,8 +64,8 @@ def create_instance(conn):
 
     except Exception as err:
         the_check.append('0')
-#        logging.error("")
-        print(err)
+        logging.error(err)
+#        print(err)
 
     try:
         instance = conn.compute.wait_for_server(instance)
@@ -66,8 +79,8 @@ def create_instance(conn):
 
     except Exception as err:
         the_check.append('0')
-#        logging.error("")
-        print(err)
+        logging.error(err)
+#        print(err)
 
     time.sleep(120)  # Sleeping to make sure IP is associated properly
 
@@ -79,7 +92,8 @@ def create_instance(conn):
             break
         except Exception as err:
             the_check.append('0')
-            print(err)
+            logging.error(err)
+#            print(err)
             break
         finally:
             test_socket.close()
@@ -95,8 +109,8 @@ def delete_instance(conn, instance):
 
     except Exception as err:
         the_check.append('0')
-#        logging.error("")
-        print(err)
+        logging.error(err)
+#        print(err)
 
 
 instance = create_instance(conn)

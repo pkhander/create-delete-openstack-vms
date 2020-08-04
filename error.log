@@ -1,0 +1,2 @@
+2020-08-04 09:33:34,268 - ERROR - create_instance - ConflictException: 409: Client Error for url: https://kaizen.massopen.cloud:13696/v2.0/floatingips.json, Quota exceeded for resources: ['floatingip']. 
+2020-08-04 09:33:34,268 - ERROR - create_instance - local variable 'ip' referenced before assignment 

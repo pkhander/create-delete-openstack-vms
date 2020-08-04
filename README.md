@@ -24,5 +24,4 @@ Key pair and security groups can be created instead of using pre-exisitng ones
 
 or
 
-[Errno 113] No route to host
-1101
+1001 ( +  error.log file )
