@@ -20,9 +20,9 @@ Key pair and security groups can be created instead of using pre-exisitng ones
 
 ## Expected output
 
-['Creation success', 'Floating Assigned', 'SSH Success!!', 'Server Deleted']
+1111
 
 or
 
-[Errno 110] Connection timed out
-['Creation success', 'Floating Assigned', 'SSH Failed!', 'Server Deleted']
+[Errno 113] No route to host
+1101
