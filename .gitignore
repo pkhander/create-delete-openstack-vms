@@ -1,1 +1,18 @@
-clouds.yml
+clouds:
+  kaizen_oidc:
+    auth:
+      username: "pkhander@bu.edu"
+      password: "beastmode"
+      project_name: "Summer Intern"
+      identity_provider: "moc"
+      protocol: "openid"
+      client_id: "kaizen-client"
+      client_secret: "fac377a9-f2ba-41e7-bb7f-4064dd9f4468"
+      access_token_endpoint: "https://sso.massopen.cloud/auth/realms/moc/protocol/openid-connect/token"
+      discovery_endpoint: "https://sso.massopen.cloud/auth/realms/moc/.well-known/openid-configuration"
+      auth_url: https://kaizen.massopen.cloud:13000/v3
+      project_domain_name: "Default"
+    region_name: "moc-kzn"
+    interface: "public"
+    identity_api_version: 3
+    auth_type: "v3oidcpassword"

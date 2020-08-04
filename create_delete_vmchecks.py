@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
+
 """Create/Delete a vm using openstack sdk"""
+
 
 import os
 import time
 import socket
-import json
+import logging
 import openstack
 import os.path
 from novaclient.v2.client import Client
@@ -44,10 +47,11 @@ def create_instance(conn):
         )
 
         instance = conn.compute.wait_for_server(instance)
-        the_check.append("Creation success")
+        the_check.append('1')
 
     except Exception as err:
-        the_check.append('Creation Failed')
+        the_check.append('0')
+#        logging.error("")
         print(err)
 
     try:
@@ -58,25 +62,26 @@ def create_instance(conn):
             server=instance.id,
             address=ip.floating_ip_address)
 
-        the_check.append("IP Assigned")
+        the_check.append('1')
 
     except Exception as err:
-        the_check.append("IP Failed")
+        the_check.append('0')
+#        logging.error("")
         print(err)
 
-    time.sleep(120)
+    time.sleep(120)  # Sleeping to make sure IP is associated properly
 
     while True:
         try:
             test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_socket.connect((ip.floating_ip_address, 22))
-            the_check.append("SSH Success")
+            the_check.append('1')
             break
         except Exception as err:
-            the_check.append("SSH Failed!")
+            the_check.append('0')
             print(err)
             break
-        else:
+        finally:
             test_socket.close()
     return instance
 
@@ -86,15 +91,15 @@ def delete_instance(conn, instance):
 
     try:
         conn.compute.delete_server(instance.id, 600)
-        the_check.append("Server Deleted")
+        the_check.append('1')
 
     except Exception as err:
-        the_check.append("Deletion failed")
+        the_check.append('0')
+#        logging.error("")
         print(err)
-
-    return True
 
 
 instance = create_instance(conn)
 delete_instance(conn, instance)
-print(the_check)
+s = "".join(the_check)
+print(s)
