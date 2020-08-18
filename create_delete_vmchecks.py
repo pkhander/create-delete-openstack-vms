@@ -1,19 +1,22 @@
-#!/usr/bin/env python3
+#!/bin/python
 
 """Create/Delete a vm using openstack sdk"""
-
 
 import os
 import time
 import socket
 import logging
+import functools
 import openstack
 import os.path
-from novaclient.v2.client import Client
 from novaclient import client
+from pyzabbix import ZabbixSender, ZabbixMetric
+
+from helper import config, load_config
+from pyzabbix_socketwrapper import PyZabbixPSKSocketWrapper
 
 FileName = "./vm_test_error"
-# FileName += time.strftime("%d-%b-%Y")
+FileName += time.strftime("%d-%b-%Y")
 FileName += ".log"
 
 with open(FileName, "a+") as f:
@@ -27,7 +30,7 @@ NETWORK = "default_network"
 POOL = "external"
 KEYPAIR_NAME = "pk"
 
-the_check = []
+vm_status = []
 
 
 conn = openstack.connect(cloud=CLOUDNAME)
@@ -60,12 +63,11 @@ def create_instance(conn):
         )
 
         instance = conn.compute.wait_for_server(instance)
-        the_check.append('1')
+        vm_status.append('vm_created:Success, ')
 
     except Exception as err:
-        the_check.append('0')
+        vm_status.append('vm_created:Failed, ')
         logging.error(err)
-#        print(err)
 
     try:
         instance = conn.compute.wait_for_server(instance)
@@ -75,12 +77,11 @@ def create_instance(conn):
             server=instance.id,
             address=ip.floating_ip_address)
 
-        the_check.append('1')
+        vm_status.append('vm_ip_assigned:Success, ')
 
     except Exception as err:
-        the_check.append('0')
+        vm_status.append('vm_ip_assigned:Failed, ')
         logging.error(err)
-#        print(err)
 
     time.sleep(120)  # Sleeping to make sure IP is associated properly
 
@@ -88,12 +89,11 @@ def create_instance(conn):
         try:
             test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_socket.connect((ip.floating_ip_address, 22))
-            the_check.append('1')
+            vm_status.append('vm_ssh_connection:Success, ')
             break
         except Exception as err:
-            the_check.append('0')
+            vm_status.append('vm_ssh_connection:Failed ')
             logging.error(err)
-#            print(err)
             break
         finally:
             test_socket.close()
@@ -105,15 +105,34 @@ def delete_instance(conn, instance):
 
     try:
         conn.compute.delete_server(instance.id, 600)
-        the_check.append('1')
+        vm_status.append('vm_deletion:Success ')
 
     except Exception as err:
-        the_check.append('0')
+        vm_status.append('vm_deletion:Failed, ')
         logging.error(err)
-#        print(err)
 
 
-instance = create_instance(conn)
-delete_instance(conn, instance)
-s = "".join(the_check)
-print(s)
+def config_function():
+
+    load_config()
+    PSK_IDENTITY = config['general']['PSK_IDENTITY']
+    PSK = config['general']['PSK']
+    ZABBIX_SERVER = config['general']['ZABBIX_SERVER']
+
+    custom_wrapper = functools.partial(
+        PyZabbixPSKSocketWrapper, identity=PSK_IDENTITY, psk=bytes(bytearray.fromhex(PSK)))
+    zabbix_sender = ZabbixSender(
+        zabbix_server=ZABBIX_SERVER, socket_wrapper=custom_wrapper, timeout=30)
+
+    return zabbix_sender
+
+
+if __name__ == "__main__":
+
+    zabbix_sender = config_function()
+    instance = create_instance(conn)
+    delete_instance(conn, instance)
+    s = "".join(vm_status)
+    print(s)
+    zabbix_sender.send(
+        [ZabbixMetric("openstack-monitoring", "openstack.test", s)])
