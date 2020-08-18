@@ -1,27 +1,19 @@
 # create-delete-instance-check
 
-## Pre-reqs
-
-Connection.py file. I used this [link](https://osticket.massopen.cloud/scp/faq.php?id=16).
-
 ## What does the script do
 
-This script has three checks so far
+This script has four checks so far
 
-1. Create a VM succesfully  ? (Add pre-exisitng key pair and security group)
-2. Assign Floating IP succesfully ? 
-3. Terminate the VM succesfully ? 
+1. Can we create a VM succesfully  ? (Add pre-exisitng key pair and security group)
+2. Can we assign Floating IP to the VM succesfully ? 
+3. Can we SSH in the VM succesfully ?
+4. Can we delete the VM succesfully ? 
 
-## What does it need
-
-SHH Connection check needs to be added before teminating the VM. 
-
-Key pair and security groups can be created instead of using pre-exisitng ones 
 
 ## Expected output
 
-1111
+vm_created:Success, vm_ip_assigned:Success, vm_ssh_connection:Success, vm_deletion:Success
 
 or
 
-1001 ( +  error.log file )
+vm_created:Success, vm_ip_assigned:Failed, vm_ssh_connection:Failed, vm_deletion:Success  ( + error.log file )
