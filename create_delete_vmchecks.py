@@ -9,13 +9,15 @@ import logging
 import functools
 import openstack
 import os.path
+import configparser
+from novaclient.v2.client import Client
 from novaclient import client
-from pyzabbix import ZabbixSender, ZabbixMetric
 
 from helper import config, load_config
 from pyzabbix_socketwrapper import PyZabbixPSKSocketWrapper
+from pyzabbix import ZabbixSender, ZabbixMetric
 
-FileName = "./vm_test_error"
+FileName = "/root/zabbix-openstack-checks/error_logs/vm_test_error"
 FileName += time.strftime("%d-%b-%Y")
 FileName += ".log"
 
@@ -31,7 +33,6 @@ POOL = "external"
 KEYPAIR_NAME = "pk"
 
 vm_status = []
-
 
 conn = openstack.connect(cloud=CLOUDNAME)
 nova_client = client.Client(2, session=conn)
@@ -68,6 +69,7 @@ def create_instance(conn):
     except Exception as err:
         vm_status.append('vm_created:Failed, ')
         logging.error(err)
+        return None
 
     try:
         instance = conn.compute.wait_for_server(instance)
@@ -82,6 +84,7 @@ def create_instance(conn):
     except Exception as err:
         vm_status.append('vm_ip_assigned:Failed, ')
         logging.error(err)
+        return None
 
     time.sleep(120)  # Sleeping to make sure IP is associated properly
 
@@ -92,8 +95,9 @@ def create_instance(conn):
             vm_status.append('vm_ssh_connection:Success, ')
             break
         except Exception as err:
-            vm_status.append('vm_ssh_connection:Failed ')
+            vm_status.append('vm_ssh_connection:Failed, ')
             logging.error(err)
+            return None
             break
         finally:
             test_socket.close()
@@ -104,26 +108,28 @@ def delete_instance(conn, instance):
     """Deletes the VM + floating IP sent to the pool"""
 
     try:
-        conn.compute.delete_server(instance.id, 600)
+        conn.compute.delete_server(instance.id, wait=True, timeout=850)
         vm_status.append('vm_deletion:Success ')
+        return True
 
     except Exception as err:
         vm_status.append('vm_deletion:Failed, ')
         logging.error(err)
+        return False
 
 
 def config_function():
+    """Zabbix sender config"""
 
     load_config()
-    PSK_IDENTITY = config['general']['PSK_IDENTITY']
-    PSK = config['general']['PSK']
-    ZABBIX_SERVER = config['general']['ZABBIX_SERVER']
+    PSK_IDENTITY = config['zabbix_api']['PSK_IDENTITY']
+    PSK = config['zabbix_api']['PSK']
+    ZABBIX_SERVER = config['zabbix_api']['ZABBIX_SERVER']
 
     custom_wrapper = functools.partial(
         PyZabbixPSKSocketWrapper, identity=PSK_IDENTITY, psk=bytes(bytearray.fromhex(PSK)))
     zabbix_sender = ZabbixSender(
         zabbix_server=ZABBIX_SERVER, socket_wrapper=custom_wrapper, timeout=30)
-
     return zabbix_sender
 
 
@@ -131,8 +137,9 @@ if __name__ == "__main__":
 
     zabbix_sender = config_function()
     instance = create_instance(conn)
-    delete_instance(conn, instance)
+    if instance is not None:
+        delete_instance(conn, instance)
     s = "".join(vm_status)
-    print(s)
+    # print(s)
     zabbix_sender.send(
         [ZabbixMetric("openstack-monitoring", "openstack.test", s)])
