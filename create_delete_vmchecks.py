@@ -10,19 +10,20 @@ import functools
 import openstack
 import os.path
 import configparser
-from novaclient.v2.client import Client
 from novaclient import client
 
-from helper import config, load_config
+from helper import config, load_config, setup_logging
 from pyzabbix_socketwrapper import PyZabbixPSKSocketWrapper
 from pyzabbix import ZabbixSender, ZabbixMetric
 
-FileName = "/root/zabbix-openstack-checks/error_logs/vm_test_error"
+FileName = "/home/rado/create-delete-openstack-vms/error_logs_test/"
 FileName += time.strftime("%d-%b-%Y")
 FileName += ".log"
 
 with open(FileName, "a+") as f:
     pass
+
+logging = setup_logging("vm_error",FileName)
 
 CLOUDNAME = "kaizen_oidc"
 SERVERNAME = "test.vm"
@@ -37,13 +38,23 @@ vm_status = []
 conn = openstack.connect(cloud=CLOUDNAME)
 nova_client = client.Client(2, session=conn)
 
-""" error.log config"""
-logging.basicConfig(
-    filename=FileName,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s "
-)
 
+class Lock:
+    """ This class will have lock mechanism to ensures that the script does not run if previous vm is not deleted"""
+
+    def enable(self):
+        with open("vm_check", "w+") as f:
+            pass
+
+    def allow(self):
+        return os.path.isfile('vm_check')
+
+    def disable(self):
+        os.remove('vm_check')
+        return True
+
+  
+lock = Lock()
 
 def create_instance(conn):
     """Create a vm + assing floating ip + SSH in the VM"""
@@ -64,6 +75,7 @@ def create_instance(conn):
         )
 
         instance = conn.compute.wait_for_server(instance)
+        lock.enable() # Lock is enabled when vm is created
         vm_status.append('vm_created:Success, ')
 
     except Exception as err:
@@ -108,12 +120,12 @@ def delete_instance(conn, instance):
     """Deletes the VM + floating IP sent to the pool"""
 
     try:
-        conn.compute.delete_server(instance.id, wait=True, timeout=850)
+        conn.compute.delete_server(instance.id, 850)
         vm_status.append('vm_deletion:Success ')
-        return True
+        return lock.disable() # Lock is disabled when the vm deletion is succesfull
 
     except Exception as err:
-        vm_status.append('vm_deletion:Failed, ')
+        vm_status.append('vm_deletion:Failed ')
         logging.error(err)
         return False
 
@@ -135,11 +147,16 @@ def config_function():
 
 if __name__ == "__main__":
 
+    if lock.allow():
+        """ Checks if the file exists before executing the script"""
+        logging.error('DANGER: Latest VM not deleted')
+        exit()
+
     zabbix_sender = config_function()
     instance = create_instance(conn)
     if instance is not None:
         delete_instance(conn, instance)
     s = "".join(vm_status)
-    # print(s)
+    #print(s)
     zabbix_sender.send(
         [ZabbixMetric("openstack-monitoring", "openstack.test", s)])

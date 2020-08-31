@@ -30,5 +30,5 @@ def setup_logging(name, logfile):
 
 def load_config():
     """Load the config file and return the config object"""
-    config_file = "/etc/zabbix-libvirt/config.ini"
+    config_file = "./config.ini"
     config.read(config_file)
